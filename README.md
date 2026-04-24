@@ -17,15 +17,17 @@
 6. [The Journey Config — Your Source of Truth](#6-the-journey-config--your-source-of-truth)
 7. [JourneyProvider and useJourney — The Wiring](#7-journeyprovider-and-usejourney--the-wiring)
 8. [Redux Store — Global Journey State](#8-redux-store--global-journey-state)
-9. [Pattern 1 — Config-Driven Rendering](#9-pattern-1--config-driven-rendering)
-10. [Pattern 2 — Slot / Render Props](#10-pattern-2--slot--render-props)
-11. [Pattern 3 — Context / Feature Flags](#11-pattern-3--context--feature-flags)
-12. [Pattern 4 — HOC / Factory](#12-pattern-4--hoc--factory)
-13. [How to Choose a Pattern](#13-how-to-choose-a-pattern)
-14. [How to Add a New Journey](#14-how-to-add-a-new-journey)
-15. [How to Add a New Section or Widget](#15-how-to-add-a-new-section-or-widget)
-16. [The Rules — Things You Must Not Do](#16-the-rules--things-you-must-not-do)
-17. [Quick Reference Card](#17-quick-reference-card)
+9. [Team Recommendation — Which Pattern to Use](#9-team-recommendation--which-pattern-to-use)
+10. [Pattern 1 — Config-Driven Rendering](#10-pattern-1--config-driven-rendering)
+11. [Pattern 2 — Slot / Render Props](#11-pattern-2--slot--render-props)
+12. [Pattern 3 — Context / Feature Flags](#12-pattern-3--context--feature-flags)
+13. [Pattern 4 — HOC / Factory](#13-pattern-4--hoc--factory)
+14. [Pattern 5 — Scoped Routes (MemoryRouter)](#14-pattern-5--scoped-routes-memoryrouter)
+15. [How to Choose a Pattern](#15-how-to-choose-a-pattern)
+16. [How to Add a New Journey](#16-how-to-add-a-new-journey)
+17. [How to Add a New Section or Widget](#17-how-to-add-a-new-section-or-widget)
+18. [The Rules — Things You Must Not Do](#18-the-rules--things-you-must-not-do)
+19. [Quick Reference Card](#19-quick-reference-card)
 
 ---
 
@@ -125,7 +127,8 @@ journey-patterns-app/
 │   │   └── useJourneyFeature.ts ← Standalone hook (same as context export)
 │   │
 │   ├── router/
-│   │   └── index.tsx            ← All routes, each wrapped with JourneyProvider
+│   │   ├── index.tsx                ← All routes, each wrapped with JourneyProvider
+│   │   └── ScopedJourneyRouter.tsx  ← Reusable MemoryRouter wrapper for isolated flows
 │   │
 │   ├── components/              ← Atomic Design component library
 │   │   ├── atoms/
@@ -138,7 +141,11 @@ journey-patterns-app/
 │       ├── pattern1-config-driven/
 │       ├── pattern2-slot/
 │       ├── pattern3-context/
-│       └── pattern4-hoc/
+│       ├── pattern4-hoc/
+│       └── pattern-scoped/          ← Pattern 5: MemoryRouter-isolated checkout flow
+│           ├── ScopedCheckoutFlow.tsx
+│           ├── StepProgress.tsx
+│           └── steps/
 ```
 
 Each `pages/pattern*/` folder is self-contained. The files inside it only implement
@@ -498,7 +505,64 @@ export default function App() {
 
 ---
 
-## 9. Pattern 1 — Config-Driven Rendering
+## 9. Team Recommendation — Which Pattern to Use
+
+> This section is the official FE team guidance. When starting new work, default
+> to the recommendation for your use case. Deviate only when you have a documented
+> reason, and update this section when a new pattern is approved.
+
+### Default pattern by use case
+
+| Use case | Recommended pattern | Reason |
+|---|---|---|
+| Page with sections that differ per journey (form fields, visible blocks) | **Pattern 3 — Context / Feature Flags** | Sections self-manage; page stays clean as requirements grow |
+| Form page where the entire form structure differs between journeys | **Pattern 1 — Config-Driven** | Section order + field list come from config, zero page logic |
+| Page where inner layout components are completely swapped between journeys | **Pattern 2 — Slot / Render Props** | Shell stays stable; journey pages are explicit about what goes where |
+| Dashboard, widget grid, or any page that is "same structure, different data" | **Pattern 4 — HOC / Factory** | Base component is pure; adding a journey is one line |
+| Multi-step funnel (checkout, onboarding, wizard) | **Pattern 5 — Scoped Routes** | Browser URL isolation prevents deep-linking and back-button issues |
+
+### Guidance for the most common situations
+
+#### Building a new feature page (e.g., promotions, loyalty, settings)
+Start with **Pattern 3**. Add feature flags to `JourneyFeatures`, set true/false per
+journey, create section components that self-hide. You will rarely need anything else.
+
+#### Building a new checkout or form page
+Use **Pattern 1** if the sections are ordered lists of fields. The config drives what
+renders — never touch the page component to change what a journey sees.
+
+If guest and member checkout require fundamentally different components (e.g., a
+loyalty redemption widget only members have), combine **Pattern 1** for the config
+structure with **Pattern 3** feature flags for the member-only blocks within sections.
+
+#### Building a multi-step flow (onboarding, checkout funnel, application wizard)
+Always wrap in **Pattern 5 — Scoped Routes**. The flow must not be deep-linkable by
+URL. Users pressing browser back should exit the flow, not land mid-step. Use
+`ScopedJourneyRouter` as the wrapper and define step routes with plain string paths
+(`/step1`, `/step2`, etc.).
+
+#### Building a dashboard or admin tool
+Use **Pattern 4**. Create `BaseDashboard`, add journey config keys, and produce variants
+with `withJourneyConfig(BaseDashboard, 'journeyKey')`. The HOC is also the right place
+to inject any analytics or permission wrappers the team adds later.
+
+### What to avoid
+
+- **Do not mix patterns on the same page** unless you have a strong reason.
+  Pattern 1 + Pattern 3 within sections is fine. Pattern 2 shell with Pattern 3
+  sections inside the slots is fine. Mixing all four in one file is a code smell.
+
+- **Do not use raw `if (journey === 'member')` checks in page files.** The four patterns
+  exist precisely to eliminate these. If you find yourself writing a journey string
+  comparison in a page component, stop and choose the right pattern.
+
+- **Do not reach for Pattern 2 (slots) just because components look different.**
+  If they share the same fields/data but differ only in styling, Pattern 3 flags or
+  config-driven classes are simpler.
+
+---
+
+## 10. Pattern 1 — Config-Driven Rendering
 
 **The core idea:** The page reads an ordered array from the config and loops over it.
 A registry object maps string keys to React components. The page never knows which
@@ -618,7 +682,7 @@ member: {
 
 ---
 
-## 10. Pattern 2 — Slot / Render Props
+## 11. Pattern 2 — Slot / Render Props
 
 **The core idea:** A "shell" component defines a layout structure with named slots.
 Journey-specific pages choose what to put in each slot. The shell knows nothing
@@ -730,7 +794,7 @@ the header and that part in the footer". Named slots solve that. Compare:
 
 ---
 
-## 11. Pattern 3 — Context / Feature Flags
+## 12. Pattern 3 — Context / Feature Flags
 
 **The core idea:** Feature flags live in the journey config. Each section component
 reads its own flag and decides for itself whether to render. The parent page renders
@@ -907,7 +971,7 @@ No conditionals. No journey checks. Done.
 
 ---
 
-## 12. Pattern 4 — HOC / Factory
+## 13. Pattern 4 — HOC / Factory
 
 **The core idea:** A Higher-Order Component (HOC) wraps a base component and injects
 a pre-loaded config as a prop. The base component is a pure function — it only
@@ -1035,11 +1099,216 @@ You also need to:
 
 ---
 
-## 13. How to Choose a Pattern
+## 14. Pattern 5 — Scoped Routes (State-Based Navigator)
+
+**The core idea:** Wrap a multi-step flow in `ScopedJourneyRouter`, a lightweight
+React Context + `useState` navigator. Step navigation (`/step1` → `/step2` → `/step3`)
+is driven by state — the browser URL never changes, no entries are added to browser
+history, and the user cannot deep-link into the middle of the flow.
+
+### Why not MemoryRouter?
+
+React Router v6's data-router API (`createBrowserRouter` + `RouterProvider`) explicitly
+**forbids nesting another `<Router>` inside it**. Trying to use `<MemoryRouter>` inside
+a `createBrowserRouter` tree throws:
+
+```
+Error: You cannot render a <Router> inside another <Router>.
+You should never have more than one in your app.
+```
+
+`ScopedJourneyRouter` solves this by providing the same API surface — `useScopedNavigate()`
+and `useScopedLocation()` — backed by React state instead of a Router context.
+The result is identical URL isolation with no React Router conflict.
+
+### Key files
+
+```
+src/router/
+└── ScopedJourneyRouter.tsx      ← Context + state navigator (no React Router dependency)
+
+src/pages/pattern-scoped/
+├── index.tsx                    ← Route entry
+├── ScopedCheckoutFlow.tsx       ← Container: ScopedJourneyRouter + ScopedRoute + URL debug
+├── StepProgress.tsx             ← Step indicator (reads useScopedLocation)
+└── steps/
+    ├── CartReviewStep.tsx       ← /step1 — uses useScopedNavigate
+    ├── PersonalDetailsStep.tsx  ← /step2
+    ├── PaymentStep.tsx          ← /step3
+    └── ConfirmationStep.tsx     ← /step4 — exits via plain <a href="/">
+```
+
+### How the tree is structured
+
+```
+BrowserRouter  (createBrowserRouter — manages /scoped/guest, never changes)
+└── JourneyProvider  (sets journey context + syncs Redux store)
+    └── ScopedCheckoutFlow
+        └── ScopedJourneyRouter  ← React Context + useState (no nested Router)
+            └── ScopedFlowInner
+                ├── StepProgress     (useScopedLocation → /step1, /step2 …)
+                ├── ScopedRoute path="/step1"  → CartReviewStep
+                ├── ScopedRoute path="/step2"  → PersonalDetailsStep
+                ├── ScopedRoute path="/step3"  → PaymentStep
+                └── ScopedRoute path="/step4"  → ConfirmationStep
+```
+
+`useJourney()`, `useAppSelector()`, and all other React Context pass through unchanged —
+only `useScopedNavigate()` and `useScopedLocation()` are scoped to the memory state.
+
+### ScopedJourneyRouter — the full implementation
+
+```tsx
+// src/router/ScopedJourneyRouter.tsx
+import { createContext, useContext, useState, type ReactNode } from 'react';
+
+interface ScopedLocation   { pathname: string; }
+type ScopedNavigateFn = (to: string) => void;
+
+interface ScopedRouterContextValue {
+  location: ScopedLocation;
+  navigate: ScopedNavigateFn;
+}
+
+const ScopedRouterContext = createContext<ScopedRouterContextValue | null>(null);
+
+// Public hooks — mirror React Router's API
+export function useScopedNavigate(): ScopedNavigateFn {
+  return useContext(ScopedRouterContext)!.navigate;
+}
+export function useScopedLocation(): ScopedLocation {
+  return useContext(ScopedRouterContext)!.location;
+}
+
+// Renders element only when the scoped path matches
+export function ScopedRoute({ path, element }: { path: string; element: ReactNode }) {
+  const { location } = useContext(ScopedRouterContext)!;
+  return location.pathname === path ? <>{element}</> : null;
+}
+
+export default function ScopedJourneyRouter({ children, initialPath = '/step1' }: {
+  children: ReactNode; initialPath?: string;
+}) {
+  const [pathname, setPathname] = useState(initialPath);
+  return (
+    <ScopedRouterContext.Provider value={{ location: { pathname }, navigate: setPathname }}>
+      {children}
+    </ScopedRouterContext.Provider>
+  );
+}
+```
+
+### The container component
+
+```tsx
+// ScopedFlowInner runs inside ScopedJourneyRouter
+function ScopedFlowInner() {
+  const { pathname: scopedPath } = useScopedLocation(); // in-memory path
+  const browserPath = window.location.pathname;         // real browser URL — never changes
+
+  return (
+    <div>
+      <p>Browser URL: {browserPath}</p>   {/* stays at /scoped/guest or /scoped/member */}
+      <p>Scoped path: {scopedPath}</p>    {/* /step1, /step2, /step3, /step4 */}
+
+      <StepProgress />
+
+      <ScopedRoute path="/step1" element={<CartReviewStep />} />
+      <ScopedRoute path="/step2" element={<PersonalDetailsStep />} />
+      <ScopedRoute path="/step3" element={<PaymentStep />} />
+      <ScopedRoute path="/step4" element={<ConfirmationStep />} />
+    </div>
+  );
+}
+
+export default function ScopedCheckoutFlow() {
+  return (
+    <PageLayout patternNumber={5} ...>
+      <ScopedJourneyRouter initialPath="/step1">
+        <ScopedFlowInner />
+      </ScopedJourneyRouter>
+    </PageLayout>
+  );
+}
+```
+
+### Navigation inside a step
+
+```tsx
+export default function CartReviewStep() {
+  const navigate    = useScopedNavigate(); // updates state — does NOT touch window.location
+  const { journey } = useJourney();        // JourneyContext — completely unaffected
+
+  return (
+    <Button onClick={() => navigate('/step2')}>
+      Proceed to Details →
+    </Button>
+  );
+}
+```
+
+### Exiting the scoped flow
+
+The confirmation step uses a plain `<a href="/">` to exit. This bypasses
+React Router entirely and does a full browser navigation.
+
+```tsx
+// ✅ Plain anchor — exits the ScopedJourneyRouter context
+<a href="/">← Return to Home</a>
+```
+
+Do **not** use React Router's `<Link>` or `useNavigate()` here. Inside the
+`ScopedJourneyRouter`, `useNavigate()` from React Router still points to the
+BrowserRouter (since we did not nest a Router). Using it to navigate away is fine
+for exiting, but a plain anchor is more explicit about intent.
+
+### How to add a new step
+
+1. Create `steps/MyNewStep.tsx` — use `useScopedNavigate()` for forward/back
+2. Add `<ScopedRoute path="/stepN" element={<MyNewStep />} />` in `ScopedFlowInner`
+3. Update the previous step's "Next" button to call `navigate('/stepN')`
+4. Add the step to `STEP_ROUTES` in `StepProgress.tsx`
+
+### How to register a new scoped flow entry point
+
+```tsx
+// src/router/index.tsx
+import MyScopedFlow from '../pages/my-scoped-flow/index';
+
+{ path: 'onboarding/guest',  element: wrap(MyScopedFlow, 'guest') },
+{ path: 'onboarding/member', element: wrap(MyScopedFlow, 'member') },
+```
+
+`wrap()` places `JourneyProvider` at the BrowserRouter level — outside and above
+the `ScopedJourneyRouter` inside the flow. This is the required nesting order.
+
+### When to use Scoped Routes
+
+✅ Use when:
+- The flow is a funnel (checkout, onboarding, application wizard, KYC)
+- Users must complete steps in order — no valid reason to deep-link to step 3
+- Browser back should exit the flow, not return to the previous step
+- The flow is embedded inside a modal or panel
+
+❌ Do not use when:
+- Each step is a valid standalone page that users bookmark or share
+- You need the browser's forward/back buttons to navigate between steps
+- The flow needs URL-based rehydration on page reload
+
+---
+
+## 15. How to Choose a Pattern
 
 Use this decision tree when starting a new journey-aware page:
 
 ```
+Is this a multi-step funnel (checkout, onboarding, wizard)?
+│
+└─ YES → Use Pattern 5 (Scoped Routes — MemoryRouter)
+         Browser URL must stay fixed; steps should not be deep-linkable
+│
+└─ NO ↓
+
 Does the page render a variable list of sections that can be reordered per journey?
 │
 ├─ YES → Use Pattern 1 (Config-Driven)
@@ -1052,7 +1321,7 @@ Does the page render a variable list of sections that can be reordered per journ
         │
         └─ NO → Does the page have a fixed list of sections some of which may be hidden?
                 │
-                ├─ YES → Use Pattern 3 (Context / Feature Flags)
+                ├─ YES → Use Pattern 3 (Context / Feature Flags) ← team default
                 │        Best when: same page for all journeys, sections self-show/hide
                 │
                 └─ NO → Are you building a dashboard or data-driven widget grid?
@@ -1063,19 +1332,20 @@ Does the page render a variable list of sections that can be reordered per journ
 
 ### Quick comparison
 
-| | Pattern 1 | Pattern 2 | Pattern 3 | Pattern 4 |
-|---|---|---|---|---|
-| Journey logic in page? | None | None | None | None |
-| Where is journey logic? | Config array | Journey page files | Section components | HOC |
-| Sections ordered by config? | ✅ Yes | ❌ No | ❌ No | Partial |
-| Sections self-hide? | ❌ No | ❌ No | ✅ Yes | ❌ No |
-| New journey = new file? | No | Yes | No | Yes (1 line) |
-| Config-driven field lists? | ✅ Yes | Manually | ❌ No | ✅ Yes |
-| Best at | Flexible forms | Different inner components | Feature toggling | Shared base, variant config |
+| | Pattern 1 | Pattern 2 | Pattern 3 | Pattern 4 | Pattern 5 |
+|---|---|---|---|---|---|
+| Journey logic in page? | None | None | None | None | None |
+| Where is journey logic? | Config array | Journey page files | Section components | HOC | Config + MemoryRouter |
+| Sections ordered by config? | ✅ Yes | ❌ No | ❌ No | Partial | ❌ No |
+| Sections self-hide? | ❌ No | ❌ No | ✅ Yes | ❌ No | ❌ No |
+| New journey = new file? | No | Yes | No | Yes (1 line) | No |
+| Browser URL changes on navigate? | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No |
+| Deep-linkable mid-flow? | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No (by design) |
+| Best at | Flexible forms | Different inner components | Feature toggling | Shared base, variant config | Multi-step funnels |
 
 ---
 
-## 14. How to Add a New Journey
+## 16. How to Add a New Journey
 
 Adding a new journey (e.g. `vip`) is the same process across all patterns.
 
@@ -1177,7 +1447,7 @@ In `src/components/organisms/Sidebar.tsx`, add entries to the relevant `NAV_GROU
 
 ---
 
-## 15. How to Add a New Section or Widget
+## 17. How to Add a New Section or Widget
 
 ### Adding a section (Patterns 1 and 3)
 
@@ -1207,7 +1477,7 @@ Sections live in the `sections/` folder of their pattern.
 
 ---
 
-## 16. The Rules — Things You Must Not Do
+## 18. The Rules — Things You Must Not Do
 
 These rules exist because we have seen them cause problems in production. They are
 not suggestions.
@@ -1343,7 +1613,25 @@ const { config } = useJourney();
 
 ---
 
-### Rule 7 — Never use raw useSelector or useDispatch
+### Rule 7 — Never nest a ScopedJourneyRouter or a MemoryRouter inside another Router
+
+```tsx
+// ❌ React Router v6 data-router forbids any nested <Router> — this throws at runtime:
+//    "You cannot render a <Router> inside another <Router>."
+import { MemoryRouter } from 'react-router-dom';
+<MemoryRouter>...</MemoryRouter>   // inside a createBrowserRouter tree — WRONG
+
+// ✅ Use ScopedJourneyRouter — it is a plain React Context, not a Router
+import ScopedJourneyRouter from '../../router/ScopedJourneyRouter';
+<ScopedJourneyRouter initialPath="/step1">...</ScopedJourneyRouter>
+```
+
+Also use a plain `<a href="/">` to exit the flow — not React Router's `<Link>` or
+`useNavigate()` — so the intent to leave the flow is explicit.
+
+---
+
+### Rule 8 — Never use raw useSelector or useDispatch
 
 ```tsx
 // ❌ Untyped — no autocomplete, no safety on state shape
@@ -1358,7 +1646,7 @@ const activeJourney = useAppSelector((state) => state.journey.activeJourney);
 
 ---
 
-## 17. Quick Reference Card
+## 19. Quick Reference Card
 
 Save this or pin it somewhere visible.
 
@@ -1403,6 +1691,14 @@ const activeJourney = useAppSelector((state) => state.journey.activeJourney);
 - [ ] New variant is one line: `withJourneyConfig(BaseDashboard, 'key')`
 - [ ] New widget added to `ALL_WIDGETS` and to `WIDGET_META` in `WidgetCard.tsx`
 
+### Pattern 5 checklist (Scoped Routes)
+
+- [ ] Flow is wrapped in `ScopedJourneyRouter` with `initialEntries={['/step1']}`
+- [ ] Step components use `useNavigate()` (not `<Link>`) for forward/back within the flow
+- [ ] The confirmation/exit step uses `<a href="/">` to escape the MemoryRouter
+- [ ] `StepProgress.tsx` has an entry for every new step added to `STEP_ROUTES`
+- [ ] Entry routes registered in `src/router/index.tsx` using `wrap()` (JourneyProvider outside MemoryRouter)
+
 ### File to edit for common tasks
 
 | Task | File to edit |
@@ -1413,9 +1709,13 @@ const activeJourney = useAppSelector((state) => state.journey.activeJourney);
 | Add a feature flag section (Pattern 3) | `types/journey.ts` + `journeyConfigs.ts` + new section file + `ProfilePage.tsx` |
 | Add a dashboard widget (Pattern 4) | `journeyConfigs.ts` + `WidgetCard.tsx` WIDGET_META |
 | Add a new journey | `types/journey.ts` + `journeyConfigs.ts` + router + sidebar nav |
+| Add a step to a scoped flow | new `steps/MyStep.tsx` + route in `ScopedCheckoutFlow` + `STEP_ROUTES` in `StepProgress.tsx` |
+| Create a new scoped flow | new `pages/my-flow/` + `ScopedJourneyRouter` + register in `router/index.tsx` |
 | Change sidebar nav groups | `src/components/organisms/Sidebar.tsx` |
 | Change page template layout | `src/components/templates/PageLayout.tsx` |
 | Change the topbar or outer shell | `src/components/templates/AppShell.tsx` |
+| Navigate between steps (inside flow) | `useNavigate()` — resolves to MemoryRouter |
+| Exit a scoped flow to browser | `<a href="/">` — bypasses MemoryRouter |
 | Read active journey outside JourneyProvider | `useAppSelector((s) => s.journey.activeJourney)` |
 
 ---

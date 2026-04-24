@@ -24,4 +24,4 @@ export interface HiddenItem {
   reason: string;
 }
 
-export type PatternNumber = 1 | 2 | 3 | 4;
+export type PatternNumber = 1 | 2 | 3 | 4 | 5;

@@ -1,6 +1,6 @@
 import type { JourneyKey } from '../../types/journey';
 
-export type DotColor = JourneyKey | 'violet' | 'sky' | 'amber' | 'emerald' | 'gray';
+export type DotColor = JourneyKey | 'violet' | 'sky' | 'amber' | 'emerald' | 'rose' | 'gray';
 type DotSize  = 'xs' | 'sm' | 'md' | 'lg';
 
 interface DotProps {
@@ -18,6 +18,7 @@ const COLOR_MAP: Record<string, string> = {
   sky:     'bg-sky-500',
   amber:   'bg-amber-500',
   emerald: 'bg-emerald-500',
+  rose:    'bg-rose-500',
   gray:    'bg-gray-400',
 };
 

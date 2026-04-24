@@ -11,6 +11,7 @@ const ACCENT: Record<PatternNumber, string> = {
   2: 'bg-sky-600',
   3: 'bg-amber-600',
   4: 'bg-emerald-600',
+  5: 'bg-rose-600',
 };
 
 export default function PatternExplanationPanel({ patternNumber, explanation }: PatternExplanationPanelProps) {

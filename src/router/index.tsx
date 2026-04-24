@@ -12,6 +12,7 @@ import Pattern3Entry from '../pages/pattern3-context/index';
 import GuestDashboard from '../pages/pattern4-hoc/GuestDashboard';
 import MemberDashboard from '../pages/pattern4-hoc/MemberDashboard';
 import AdminDashboard from '../pages/pattern4-hoc/AdminDashboard';
+import Pattern5Entry from '../pages/pattern-scoped/index';
 
 function wrap(Component: ComponentType, journey: JourneyKey): ReactElement {
   return (
@@ -41,6 +42,9 @@ const routes: RouteObject[] = [
       { path: 'pattern4/guest',  element: wrap(GuestDashboard, 'guest') },
       { path: 'pattern4/member', element: wrap(MemberDashboard, 'member') },
       { path: 'pattern4/admin',  element: wrap(AdminDashboard, 'admin') },
+
+      { path: 'scoped/guest',  element: wrap(Pattern5Entry, 'guest') },
+      { path: 'scoped/member', element: wrap(Pattern5Entry, 'member') },
     ],
   },
 ];

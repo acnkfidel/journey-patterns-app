@@ -24,6 +24,9 @@ const PATTERNS: PatternMeta[] = [
   { number: 4, name: 'HOC / Factory', color: 'emerald',
     routes: ['/pattern4/guest', '/pattern4/member', '/pattern4/admin'], complexity: 'Medium-High', icon: '🏭',
     description: 'A Higher-Order Component wraps BaseDashboard and injects the journey config as a prop. BaseDashboard is pure — it never imports journeyConfigs. Each variant is one line.' },
+  { number: 5, name: 'Scoped Routes', color: 'rose',
+    routes: ['/scoped/guest', '/scoped/member'], complexity: 'Medium', icon: '🔒',
+    description: 'A MemoryRouter wraps a multi-step flow. The browser URL never changes as the user navigates steps — all routing state lives in memory, isolating the flow from the global browser history.' },
 ];
 
 const COLOR: Record<string, { card: string; num: string; tag: string }> = {
@@ -31,6 +34,7 @@ const COLOR: Record<string, { card: string; num: string; tag: string }> = {
   sky:     { card: 'border-sky-200 bg-sky-50/40',          num: 'bg-sky-600',     tag: 'bg-sky-50 text-sky-600 border border-sky-200' },
   amber:   { card: 'border-amber-200 bg-amber-50/40',      num: 'bg-amber-600',   tag: 'bg-amber-50 text-amber-600 border border-amber-200' },
   emerald: { card: 'border-emerald-200 bg-emerald-50/40',  num: 'bg-emerald-600', tag: 'bg-emerald-50 text-emerald-600 border border-emerald-200' },
+  rose:    { card: 'border-rose-200 bg-rose-50/40',        num: 'bg-rose-600',    tag: 'bg-rose-50 text-rose-600 border border-rose-200' },
 };
 
 const JOURNEY_LINK: Record<JourneyKey, string> = {

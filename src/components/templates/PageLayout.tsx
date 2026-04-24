@@ -16,6 +16,7 @@ const BANNER: Record<PatternNumber, BannerStyle> = {
   2: { bg: 'bg-sky-50 border-sky-200',         accent: 'text-sky-700',     num: 'bg-sky-600' },
   3: { bg: 'bg-amber-50 border-amber-200',     accent: 'text-amber-700',   num: 'bg-amber-600' },
   4: { bg: 'bg-emerald-50 border-emerald-200', accent: 'text-emerald-700', num: 'bg-emerald-600' },
+  5: { bg: 'bg-rose-50 border-rose-200',       accent: 'text-rose-700',    num: 'bg-rose-600' },
 };
 
 interface PageLayoutProps {

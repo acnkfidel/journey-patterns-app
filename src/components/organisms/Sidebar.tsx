@@ -64,6 +64,15 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Admin Dashboard',  path: '/pattern4/admin',  journey: 'admin' },
     ],
   },
+  {
+    id: 'scoped',
+    label: 'Pattern 5', sublabel: 'Scoped Routes',
+    color: 'text-rose-400', dot: 'rose',
+    items: [
+      { label: 'Guest Checkout',  path: '/scoped/guest',  journey: 'guest' },
+      { label: 'Member Checkout', path: '/scoped/member', journey: 'member' },
+    ],
+  },
 ];
 
 export default function Sidebar() {

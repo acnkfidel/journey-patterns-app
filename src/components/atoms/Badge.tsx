@@ -20,6 +20,7 @@ const PATTERN_STYLE: Record<PatternNumber, string> = {
   2: 'bg-sky-100 text-sky-800 border border-sky-300',
   3: 'bg-amber-100 text-amber-800 border border-amber-300',
   4: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+  5: 'bg-rose-100 text-rose-800 border border-rose-300',
 };
 
 export default function Badge({ journey, pattern, children, className = '' }: BadgeProps) {
